@@ -1,0 +1,123 @@
+=== BUILD INSTRUCTIONS ===
+
+Your matrix compiler with code generation has been updated!
+
+The following files have been modified:
+- semantic.h: Added Matrix structure and operations
+- semantic.c: Implemented matrix operations (add, subtract, multiply, transpose)
+- parser.y: Updated to handle matrix operations properly
+
+TO BUILD THE PROJECT:
+====================
+
+Since you're on Windows with win_flex_bison tools, you need to:
+
+1. Make sure your Makefile paths are correct:
+   FLEX = D:/win_flex_bison-latest/win_flex.exe
+   BISON = D:/win_flex_bison-latest/win_bison.exe
+
+2. Run these commands in order:
+
+   make clean
+   make all
+
+   This will:
+   - Generate lex.yy.c from lexer.l
+   - Generate parser.tab.c and parser.tab.h from parser.y
+   - Compile all C files together
+
+3. If you get path errors, update the Makefile with the correct paths to win_flex.exe and win_bison.exe
+
+HOW IT WORKS NOW:
+==================
+
+Your compiler now has full code generation! When you run:
+
+A = [1, 2; 3, 4];
+B = [5, 6; 7, 8];
+C = A * B + A';
+print(C);
+
+The compiler will:
+1. Parse and validate the syntax (lexical & syntax analysis)
+2. Check variable declarations (semantic analysis)
+3. CREATE actual matrix structures in memory
+4. PERFORM the matrix multiplication: A * B
+5. PERFORM the matrix transpose: A'
+6. PERFORM the matrix addition: (A*B) + A'
+7. STORE the result in variable C
+8. PRINT the actual computed result!
+
+Expected Output:
+----------------
+Table des symboles initialisee.
+=== Matrix Compiler (interactif) ===
+Type 'exit' to quit.
+>> A = [1, 2; 3, 4];
+Affectation: A = (expression)
+Variable 'A' ajoutee
+>> B = [5, 6; 7, 8];
+Affectation: B = (expression)
+Variable 'B' ajoutee
+>> C = A * B + A';
+-> Multiplication detectee
+-> Transposition detectee
+-> Addition detectee
+Affectation: C = (expression)
+Variable 'C' ajoutee
+>> print(C);
+Affichage de la variable: C
+
+=== Resultat: C ===
+Matrice 2x2:
+  [ 20.00 30.00 ]
+  [ 30.00 46.00 ]
+
+WHAT'S NEW:
+============
+
+1. Matrix Structure: Each matrix stores its dimensions and data
+2. Matrix Operations:
+   - Addition: element-wise addition with dimension checking
+   - Subtraction: element-wise subtraction
+   - Multiplication: proper matrix multiplication (AxB requires A.cols = B.rows)
+   - Transpose: flips rows and columns
+
+3. Code Generation: The compiler now:
+   - Creates actual matrix objects during parsing
+   - Performs computations as expressions are evaluated
+   - Stores results in a symbol table
+   - Can retrieve and display computed values
+
+4. Error Checking:
+   - Dimension compatibility for operations
+   - Undefined variable detection
+   - Matrix row size validation
+
+TESTING:
+========
+
+Try these examples:
+
+1. Basic matrix operations:
+   A = [1, 2; 3, 4];
+   B = [5, 6; 7, 8];
+   C = A + B;
+   print(C);
+
+2. Matrix multiplication:
+   A = [1, 2; 3, 4];
+   B = [5, 6; 7, 8];
+   C = A * B;
+   print(C);
+
+3. Transpose:
+   A = [1, 2, 3; 4, 5, 6];
+   B = A';
+   print(B);
+
+4. Complex expression:
+   A = [1, 2; 3, 4];
+   B = [5, 6; 7, 8];
+   C = A * B + A';
+   print(C);

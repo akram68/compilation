@@ -1,0 +1,149 @@
+=== EXAMPLE: Matrix Compiler with Code Generation ===
+
+INPUT CODE (test.txt):
+----------------------
+A = [1, 2; 3, 4];
+B = [5, 6; 7, 8];
+C = A * B + A';
+print(C);
+
+STEP-BY-STEP EXECUTION:
+-----------------------
+
+1. LEXICAL ANALYSIS:
+   - Tokenizes: ID("A"), ASSIGN, LBRACKET, NUMBER(1), COMMA, NUMBER(2), ...
+
+2. SYNTAX ANALYSIS:
+   - Validates grammar rules
+   - Builds parse tree
+
+3. SEMANTIC ANALYSIS:
+   - Checks variable declarations
+   - Validates matrix dimensions
+
+4. CODE GENERATION (NEW!):
+
+   Step 1: A = [1, 2; 3, 4]
+   ---------------------------
+   Creates matrix A (2x2):
+   [ 1.00  2.00 ]
+   [ 3.00  4.00 ]
+
+   Stores in symbol table: A -> Matrix(2x2)
+
+   Step 2: B = [5, 6; 7, 8]
+   ---------------------------
+   Creates matrix B (2x2):
+   [ 5.00  6.00 ]
+   [ 7.00  8.00 ]
+
+   Stores in symbol table: B -> Matrix(2x2)
+
+   Step 3: C = A * B + A'
+   ---------------------------
+
+   Sub-step 3.1: Retrieve A from symbol table
+   A = [ 1.00  2.00 ]
+       [ 3.00  4.00 ]
+
+   Sub-step 3.2: Retrieve B from symbol table
+   B = [ 5.00  6.00 ]
+       [ 7.00  8.00 ]
+
+   Sub-step 3.3: Compute A * B (matrix multiplication)
+   Result of A * B:
+   [1*5 + 2*7,  1*6 + 2*8]   =   [19.00  22.00]
+   [3*5 + 4*7,  3*6 + 4*8]       [43.00  50.00]
+
+   Sub-step 3.4: Compute A' (transpose of A)
+   Result of A':
+   [ 1.00  3.00 ]
+   [ 2.00  4.00 ]
+
+   Sub-step 3.5: Compute (A*B) + A' (matrix addition)
+   [19.00  22.00]   +   [1.00  3.00]   =   [20.00  25.00]
+   [43.00  50.00]       [2.00  4.00]       [45.00  54.00]
+
+   Wait, let me recalculate...
+
+   Actually for your example:
+   A * B = [1*5+2*7, 1*6+2*8] = [19, 22]
+           [3*5+4*7, 3*6+4*8]   [43, 50]
+
+   A' = [1, 3]
+        [2, 4]
+
+   C = A*B + A' = [19+1, 22+3] = [20, 25]
+                  [43+2, 50+4]   [45, 54]
+
+   Stores in symbol table: C -> Matrix(2x2)
+
+   Step 4: print(C)
+   ---------------------------
+   Retrieves C from symbol table and displays:
+
+   === Resultat: C ===
+   Matrice 2x2:
+     [ 20.00  25.00 ]
+     [ 45.00  54.00 ]
+
+
+CONSOLE OUTPUT:
+---------------
+Table des symboles initialisee.
+=== Matrix Compiler (interactif) ===
+Type 'exit' to quit.
+>> A = [1, 2; 3, 4];
+Affectation: A = (expression)
+Variable 'A' ajoutee
+>> B = [5, 6; 7, 8];
+Affectation: B = (expression)
+Variable 'B' ajoutee
+>> C = A * B + A';
+-> Multiplication detectee
+-> Transposition detectee
+-> Addition detectee
+Affectation: C = (expression)
+Variable 'C' ajoutee
+>> print(C);
+Affichage de la variable: C
+
+=== Resultat: C ===
+Matrice 2x2:
+  [ 20.00  25.00 ]
+  [ 45.00  54.00 ]
+>> exit
+
+
+MORE EXAMPLES:
+--------------
+
+Example 1: Simple Addition
+>> A = [1, 2; 3, 4];
+>> B = [10, 20; 30, 40];
+>> C = A + B;
+>> print(C);
+
+Result:
+  [ 11.00  22.00 ]
+  [ 33.00  44.00 ]
+
+Example 2: Transpose
+>> A = [1, 2, 3; 4, 5, 6];
+>> B = A';
+>> print(B);
+
+Result (3x2 matrix):
+  [ 1.00  4.00 ]
+  [ 2.00  5.00 ]
+  [ 3.00  6.00 ]
+
+Example 3: Complex Expression
+>> A = [1, 2; 3, 4];
+>> B = [2, 0; 0, 2];
+>> C = A * B - A;
+>> print(C);
+
+Result:
+  [ 1.00  2.00 ]
+  [ 3.00  4.00 ]

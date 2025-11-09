@@ -8,21 +8,23 @@
 void yyerror(const char *s);
 int yylex(void);
 
-// compteur global pour vérifier la cohérence des matrices
-int current_row_size = -1;
+int first_row_size = -1;
+extern int temp_row_count;
+extern int temp_col_count;
 %}
 
 %union {
     float fval;
     char* sval;
+    Matrix* matrix;
 }
 
 %token <sval> ID
 %token <fval> NUMBER
 %token PRINT LBRACKET RBRACKET SEMICOLON COMMA ASSIGN PLUS MINUS MULT TRANSPOSE
 
-%type <fval> expr term factor
-%type <fval> matrix row
+%type <matrix> expr term factor matrix
+%type <fval> row
 
 %start program
 
@@ -37,13 +39,14 @@ statement:
       ID ASSIGN expr SEMICOLON
         {
             printf("Affectation: %s = (expression)\n", $1);
-            add_variable($1, $3);  // analyse sémantique : enregistrer la variable
+            add_matrix_variable($1, $3);
+            free_matrix($3);
             free($1);
         }
     | PRINT '(' ID ')' SEMICOLON
         {
             printf("Affichage de la variable: %s\n", $3);
-            print_variable($3);     // vérifie si la variable existe
+            print_matrix_variable($3);
             free($3);
         }
     | error SEMICOLON
@@ -64,12 +67,16 @@ expr:
       expr PLUS term
         {
             printf("-> Addition detectee\n");
-            $$ = $1 + $3;
+            $$ = matrix_add($1, $3);
+            free_matrix($1);
+            free_matrix($3);
         }
     | expr MINUS term
         {
             printf("-> Soustraction detectee\n");
-            $$ = $1 - $3;
+            $$ = matrix_subtract($1, $3);
+            free_matrix($1);
+            free_matrix($3);
         }
     | term
         { $$ = $1; }
@@ -78,8 +85,10 @@ expr:
 term:
       term MULT factor
         {
-            printf("-> Multiplication détectee\n");
-            $$ = $1 * $3;
+            printf("-> Multiplication detectee\n");
+            $$ = matrix_multiply($1, $3);
+            free_matrix($1);
+            free_matrix($3);
         }
     | factor
         { $$ = $1; }
@@ -88,29 +97,42 @@ term:
 factor:
       ID
         {
-            $$ = get_variable_value($1); // analyse sémantique : vérifier l’existence
+            Matrix *m = get_matrix_variable($1);
+            $$ = copy_matrix(m);
             free($1);
         }
     | ID TRANSPOSE
         {
-            printf("-> Transposition détectee\n");
-            $$ = get_variable_value($1); // symbolique, on pourrait faire transpose plus tard
+            printf("-> Transposition detectee\n");
+            Matrix *m = get_matrix_variable($1);
+            $$ = matrix_transpose(m);
             free($1);
         }
     | NUMBER
-        { $$ = $1; }
+        {
+            $$ = create_matrix(1, 1);
+            $$->data[0] = $1;
+        }
     | LBRACKET matrix RBRACKET
         { $$ = $2; }
     ;
 
 matrix:
       row
-        { $$ = 0; current_row_size = get_last_row_size(); }
+        {
+            first_row_size = get_last_row_size();
+            temp_col_count = first_row_size;
+            temp_row_count = 1;
+            $$ = finalize_matrix();
+        }
     | matrix SEMICOLON row
         {
-            if (get_last_row_size() != current_row_size)
-                printf(" Erreur sémantique: lignes de tailles differentes dans la matrice.\n");
-            $$ = 0;
+            int current_size = get_last_row_size();
+            if (current_size != first_row_size) {
+                printf("Erreur semantique: lignes de tailles differentes dans la matrice.\n");
+            }
+            temp_row_count++;
+            $$ = finalize_matrix();
         }
     ;
 

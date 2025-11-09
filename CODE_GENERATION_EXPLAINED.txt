@@ -1,0 +1,285 @@
+=== CODE GENERATION PHASE - DETAILED EXPLANATION ===
+
+WHAT IS CODE GENERATION?
+=========================
+
+Code generation is the final phase of compilation where the compiler:
+1. Takes the validated parse tree
+2. Executes the operations
+3. Produces the actual results
+
+In your matrix compiler, instead of generating assembly or machine code,
+we generate RESULTS by actually performing the matrix operations.
+
+HOW IT WORKS IN YOUR COMPILER:
+===============================
+
+TRADITIONAL COMPILER:
+  Source Code → Parse Tree → Assembly/Machine Code → Execution
+
+YOUR COMPILER (Interpreter-style):
+  Source Code → Parse Tree → Direct Execution → Results
+
+This is called a "tree-walking interpreter" - we evaluate the parse
+tree directly during parsing.
+
+CODE GENERATION IMPLEMENTATION:
+================================
+
+1. SYMBOL TABLE (Runtime Storage)
+
+   Before: Stored only float values
+   Now: Stores actual Matrix objects with data
+
+   typedef struct {
+       char name[50];
+       Matrix *matrix;  // Actual matrix data!
+   } MatrixVariable;
+
+2. EXPRESSION EVALUATION (Bottom-Up)
+
+   Example: C = A * B + A'
+
+   Step 1: Parse "A"
+           → Look up A in symbol table
+           → Return copy of Matrix A
+           → This is CODE GENERATION (retrieving runtime data)
+
+   Step 2: Parse "B"
+           → Look up B in symbol table
+           → Return copy of Matrix B
+
+   Step 3: Parse "A * B"
+           → Call matrix_multiply(A, B)
+           → CREATE NEW MATRIX with computed values
+           → This is CODE GENERATION (computing result)
+
+   Step 4: Parse "A'"
+           → Call matrix_transpose(A)
+           → CREATE NEW MATRIX with transposed values
+
+   Step 5: Parse "(A*B) + (A')"
+           → Call matrix_add(temp1, temp2)
+           → CREATE NEW MATRIX with sum
+
+   Step 6: Parse "C = ..."
+           → Store result matrix in symbol table under "C"
+           → This is CODE GENERATION (storing result)
+
+3. SEMANTIC ACTIONS IN PARSER
+
+   In parser.y, each grammar rule has "semantic actions" in { }:
+
+   expr: expr PLUS term
+       {
+           printf("-> Addition detectee\n");
+           $$ = matrix_add($1, $3);      ← CODE GENERATION!
+           free_matrix($1);              ← Memory management
+           free_matrix($3);
+       }
+
+   What happens:
+   - $1 = left operand (Matrix pointer)
+   - $3 = right operand (Matrix pointer)
+   - matrix_add() COMPUTES the result
+   - $$ = return the new matrix
+   - This matrix flows up the parse tree
+
+4. MATRIX OPERATIONS (The Actual Computation)
+
+   Matrix Addition (semantic.c):
+
+   Matrix* matrix_add(Matrix *a, Matrix *b) {
+       // Validation
+       if (a->rows != b->rows || a->cols != b->cols) {
+           printf("Error: incompatible dimensions\n");
+           return NULL;
+       }
+
+       // Allocate result matrix
+       Matrix *result = create_matrix(a->rows, a->cols);
+
+       // PERFORM THE ACTUAL COMPUTATION
+       for (int i = 0; i < a->rows * a->cols; i++) {
+           result->data[i] = a->data[i] + b->data[i];
+       }
+
+       return result;  // This is the generated code's result!
+   }
+
+   Matrix Multiplication (semantic.c):
+
+   Matrix* matrix_multiply(Matrix *a, Matrix *b) {
+       // Validation
+       if (a->cols != b->rows) {
+           printf("Error: incompatible dimensions\n");
+           return NULL;
+       }
+
+       // Allocate result matrix
+       Matrix *result = create_matrix(a->rows, b->cols);
+
+       // PERFORM THE COMPUTATION (standard algorithm)
+       for (int i = 0; i < a->rows; i++) {
+           for (int j = 0; j < b->cols; j++) {
+               float sum = 0;
+               for (int k = 0; k < a->cols; k++) {
+                   sum += a->data[i * a->cols + k] *
+                          b->data[k * b->cols + j];
+               }
+               result->data[i * b->cols + j] = sum;
+           }
+       }
+
+       return result;
+   }
+
+EXAMPLE TRACE:
+==============
+
+Input: A = [1, 2; 3, 4]; B = [5, 6; 7, 8]; C = A * B;
+
+PHASE 1: Lexical Analysis
+--------------------------
+Tokens: ID(A), ASSIGN, LBRACKET, NUMBER(1), COMMA, NUMBER(2), ...
+
+PHASE 2: Syntax Analysis
+--------------------------
+Parse tree validated against grammar rules
+
+PHASE 3: Semantic Analysis
+--------------------------
+Check: All variables used after declaration
+Check: Matrix dimensions compatible
+
+PHASE 4: CODE GENERATION (NEW!)
+--------------------------
+
+Statement 1: A = [1, 2; 3, 4];
+
+  1. Parser matches: ID ASSIGN LBRACKET matrix RBRACKET SEMICOLON
+  2. Matrix rule matches: row SEMICOLON row
+  3. Row 1: NUMBER(1) COMMA NUMBER(2)
+     → start_new_row()
+     → add_number_to_row(1)
+     → add_number_to_row(2)
+  4. Row 2: NUMBER(3) COMMA NUMBER(4)
+     → start_new_row()
+     → add_number_to_row(3)
+     → add_number_to_row(4)
+  5. finalize_matrix()
+     → CREATE Matrix object (2x2)
+     → Copy data: [1, 2, 3, 4]
+     → Return Matrix pointer
+  6. add_matrix_variable("A", matrix)
+     → Store in symbol table
+     → A now maps to actual matrix data!
+
+Statement 2: B = [5, 6; 7, 8];
+
+  Similar process, creates and stores Matrix B
+
+Statement 3: C = A * B;
+
+  1. Parser matches: ID ASSIGN expr SEMICOLON
+  2. expr matches: term (where term is "A * B")
+  3. term matches: term MULT factor
+  4. Evaluate factor "A":
+     → get_matrix_variable("A")
+     → Retrieves: [1, 2; 3, 4]
+     → Returns copy of matrix
+  5. Evaluate factor "B":
+     → get_matrix_variable("B")
+     → Retrieves: [5, 6; 7, 8]
+     → Returns copy of matrix
+  6. Evaluate "A * B":
+     → matrix_multiply(A, B)
+     → Compute:
+         [1×5+2×7, 1×6+2×8]  =  [19, 22]
+         [3×5+4×7, 3×6+4×8]     [43, 50]
+     → Return new Matrix [19, 22; 43, 50]
+  7. Assignment:
+     → add_matrix_variable("C", result)
+     → C now maps to [19, 22; 43, 50]
+
+  ★ THIS IS CODE GENERATION! ★
+  The result is COMPUTED and STORED!
+
+PRINT Statement: print(C);
+
+  1. Parser matches: PRINT '(' ID ')' SEMICOLON
+  2. Semantic action:
+     → print_matrix_variable("C")
+  3. Function execution:
+     → Lookup "C" in symbol table
+     → Retrieve stored matrix
+     → Print to console:
+       Matrice 2x2:
+         [ 19.00  22.00 ]
+         [ 43.00  50.00 ]
+
+  ★ THIS IS CODE GENERATION OUTPUT! ★
+
+KEY DIFFERENCES FROM BEFORE:
+=============================
+
+BEFORE (No Code Generation):
+  - Only validated syntax and semantics
+  - Stored symbolic placeholders
+  - No actual computation
+  - print(C) would show "0.00" or error
+
+AFTER (With Code Generation):
+  - Validates AND executes
+  - Stores actual computed matrices
+  - Performs real matrix operations
+  - print(C) shows the REAL computed result!
+
+MEMORY MANAGEMENT:
+==================
+
+Important for code generation:
+
+1. create_matrix(): Allocates memory for matrix data
+2. copy_matrix(): Creates independent copy
+3. free_matrix(): Releases memory when done
+4. Operations create NEW matrices (don't modify originals)
+
+This prevents:
+- Memory leaks
+- Use-after-free bugs
+- Unexpected side effects
+
+WHY THIS APPROACH?
+==================
+
+Your compiler uses "direct evaluation" code generation:
+
+Advantages:
+✓ Simple to implement
+✓ Immediate results
+✓ Easy to debug
+✓ Perfect for educational purposes
+✓ Good for interactive tools
+
+Disadvantages:
+✗ Not as fast as compiled code
+✗ Can't optimize across statements
+✗ Memory overhead
+
+For a matrix calculator/compiler, this approach is PERFECT!
+
+SUMMARY:
+========
+
+Code generation in your compiler means:
+
+1. Creating actual Matrix objects during parsing
+2. Executing matrix operations (add, multiply, transpose)
+3. Storing computed results in symbol table
+4. Producing real numerical output
+
+Your compiler is now a complete system:
+  Input → Lexical → Syntax → Semantic → CODE GENERATION → Output
+
+You can give it matrix expressions and get ACTUAL RESULTS!
