@@ -6,7 +6,6 @@ typedef struct
     char *name;
     int rows;
     int cols;
-    /* we don't store values here to keep it simple (could be added) */
     int initialized;
 } Symbol;
 

@@ -3,17 +3,19 @@
 #include <string.h>
 #include "parser.tab.h"
 #include "lex.yy.h"
+#include "codegen.h"
 
 int yyparse(void);
-int yylex_destroy(void);
 extern FILE *yyin;
 extern YY_BUFFER_STATE yy_scan_string(const char *str);
 extern void yy_switch_to_buffer(YY_BUFFER_STATE new_buffer);
+extern void yy_delete_buffer(YY_BUFFER_STATE buffer); // Ajoutez cette déclaration
 
 int main()
 {
     char input[2048];
     init_symbol_table();
+    init_codegen();
 
     printf("=== Matrix Compiler (interactif) ===\nType 'exit' to quit.\n");
     while (1)
@@ -29,7 +31,8 @@ int main()
         YY_BUFFER_STATE buf = yy_scan_string(input);
         yy_switch_to_buffer(buf);
         yyparse();
-        yylex_destroy();
+        yy_delete_buffer(buf); // Remplacez yylex_destroy() par yy_delete_buffer()
     }
+    generate_finish();
     return 0;
 }

@@ -1,19 +1,21 @@
-%option noyywrap
-%option header-file="lex.yy.h"
+%option noyywrap 
+/* Désactive la fonction yywrap (simplifie l'utilisation) */
+
 
 %{
+#include "semantic.h"
 #include "parser.tab.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-extern YYSTYPE yylval;
+extern YYSTYPE yylval; /* Variable globale pour communiquer avec Bison*/
 %}
 
 /* rules */
 %%
 [ \t\r\n]+                ;             /* ignorer espaces et retours ligne */
 
-"print"                   { yylval.sval = strdup("print"); return PRINT; }
+"print"                   { yylval.sval = strdup("print"); return PRINT; } /* Quand "print" est trouvé, stocke la chaîne et retourne le token PRINT */
 "["                       { return LBRACKET; }
 "]"                       { return RBRACKET; }
 ";"                       { return SEMICOLON; }

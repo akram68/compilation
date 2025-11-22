@@ -5,6 +5,7 @@ typedef struct {
     float *data;
     int rows;
     int cols;
+    char *name;
 } Matrix;
 
 typedef struct {

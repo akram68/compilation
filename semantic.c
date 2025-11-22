@@ -7,15 +7,16 @@
 #define MAX_MATRIX_ROWS 100
 #define MAX_MATRIX_COLS 100
 
+/* table pour stocker une variable matrice */
 typedef struct {
     char name[50];
     Matrix *matrix;
 } MatrixVariable;
 
-MatrixVariable var_table[MAX_VARS];
-int var_count = 0;
+static MatrixVariable var_table[MAX_VARS];
+static int var_count = 0; /* Compteur de var dans la table */
 
-float temp_matrix_data[MAX_MATRIX_ROWS][MAX_MATRIX_COLS];
+static float temp_matrix_data[MAX_MATRIX_ROWS][MAX_MATRIX_COLS];
 int temp_row_count = 0;
 int temp_col_count = 0;
 int current_row_size = 0;
@@ -25,17 +26,29 @@ void init_symbol_table() {
     printf("Table des symboles initialisee.\n");
 }
 
+/* création d'une matrice et initialisation du champ name */
 Matrix* create_matrix(int rows, int cols) {
     Matrix *mat = (Matrix*)malloc(sizeof(Matrix));
+    if (!mat) {
+        fprintf(stderr, "Erreur allocation create_matrix\n");
+        exit(1);
+    }
     mat->rows = rows;
     mat->cols = cols;
     mat->data = (float*)malloc(rows * cols * sizeof(float));
+    if (!mat->data) {
+        fprintf(stderr, "Erreur allocation data\n");
+        free(mat);
+        exit(1);
+    }
+    mat->name = NULL;
     return mat;
 }
 
 void free_matrix(Matrix *mat) {
     if (mat) {
         if (mat->data) free(mat->data);
+        if (mat->name) free(mat->name);
         free(mat);
     }
 }
@@ -44,6 +57,9 @@ Matrix* copy_matrix(Matrix *mat) {
     if (!mat) return NULL;
     Matrix *copy = create_matrix(mat->rows, mat->cols);
     memcpy(copy->data, mat->data, mat->rows * mat->cols * sizeof(float));
+    /* copie du nom si existant */
+    if (mat->name) copy->name = strdup(mat->name);
+    else copy->name = NULL;
     return copy;
 }
 
@@ -62,22 +78,43 @@ void print_matrix(Matrix *mat) {
     }
 }
 
+/* Ajoute ou met à jour une variable dans la table des symboles */
 void add_matrix_variable(const char *name, Matrix *mat) {
+    if (!name || !mat) return;
+
     for (int i = 0; i < var_count; i++) {
         if (strcmp(var_table[i].name, name) == 0) {
-            free_matrix(var_table[i].matrix);
+            /* suppression ancienne matrice */
+            if (var_table[i].matrix) free_matrix(var_table[i].matrix);
+            /* stocke une copie de la nouvelle matrice */
             var_table[i].matrix = copy_matrix(mat);
+            /* affecte le nom à la matrice stockée */
+            if (var_table[i].matrix) {
+                if (var_table[i].matrix->name) free(var_table[i].matrix->name);
+                var_table[i].matrix->name = strdup(name);
+            }
             printf("Variable '%s' mise a jour\n", name);
             return;
         }
     }
-    strcpy(var_table[var_count].name, name);
-    var_table[var_count].matrix = copy_matrix(mat);
-    var_count++;
-    printf("Variable '%s' ajoutee\n", name);
+    /* nouvelle entrée */
+    if (var_count < MAX_VARS) {
+        strncpy(var_table[var_count].name, name, sizeof(var_table[var_count].name)-1);
+        var_table[var_count].name[sizeof(var_table[var_count].name)-1] = '\0';
+        var_table[var_count].matrix = copy_matrix(mat);
+        if (var_table[var_count].matrix) {
+            if (var_table[var_count].matrix->name) free(var_table[var_count].matrix->name);
+            var_table[var_count].matrix->name = strdup(name);
+        }
+        var_count++;
+        printf("Variable '%s' ajoutee\n", name);
+    } else {
+        printf("Erreur: table de variables pleine\n");
+    }
 }
 
 Matrix* get_matrix_variable(const char *name) {
+    if (!name) return NULL;
     for (int i = 0; i < var_count; i++) {
         if (strcmp(var_table[i].name, name) == 0) {
             return var_table[i].matrix;
@@ -98,6 +135,7 @@ void print_matrix_variable(const char *name) {
     printf("Erreur: variable '%s' non trouvee.\n", name);
 }
 
+/* opérations : on met name = NULL pour que le parser/codegen fixe le nom dest */
 Matrix* matrix_add(Matrix *a, Matrix *b) {
     if (!a || !b) return NULL;
     if (a->rows != b->rows || a->cols != b->cols) {
@@ -109,6 +147,7 @@ Matrix* matrix_add(Matrix *a, Matrix *b) {
     for (int i = 0; i < a->rows * a->cols; i++) {
         result->data[i] = a->data[i] + b->data[i];
     }
+    result->name = NULL;
     return result;
 }
 
@@ -123,6 +162,7 @@ Matrix* matrix_subtract(Matrix *a, Matrix *b) {
     for (int i = 0; i < a->rows * a->cols; i++) {
         result->data[i] = a->data[i] - b->data[i];
     }
+    result->name = NULL;
     return result;
 }
 
@@ -143,6 +183,7 @@ Matrix* matrix_multiply(Matrix *a, Matrix *b) {
             result->data[i * b->cols + j] = sum;
         }
     }
+    result->name = NULL;
     return result;
 }
 
@@ -154,33 +195,46 @@ Matrix* matrix_transpose(Matrix *a) {
             result->data[j * a->rows + i] = a->data[i * a->cols + j];
         }
     }
+    result->name = NULL;
     return result;
 }
 
+/* fonctions utilitaires pour construction de matrice depuis le parser */
 void start_new_matrix() {
     temp_row_count = 0;
     temp_col_count = 0;
+    current_row_size = 0;
 }
 
 void start_new_row() {
+    /* reset taille courante de la ligne */
     current_row_size = 0;
+    /* NB: le parser gère temp_row_count (il peut initialiser à 1 comme dans ton parser) */
 }
 
 void add_number_to_row(float num) {
     if (temp_row_count < MAX_MATRIX_ROWS && current_row_size < MAX_MATRIX_COLS) {
         temp_matrix_data[temp_row_count][current_row_size] = num;
         current_row_size++;
+        /* temp_col_count est géré par le parser ou after finalize */
+    } else {
+        printf("Erreur: depassement dimensions temporaires\n");
     }
 }
 
 Matrix* finalize_matrix() {
-    if (temp_row_count == 0) return NULL;
-    Matrix *mat = create_matrix(temp_row_count, temp_col_count);
-    for (int i = 0; i < temp_row_count; i++) {
-        for (int j = 0; j < temp_col_count; j++) {
-            mat->data[i * temp_col_count + j] = temp_matrix_data[i][j];
+    /* si temp_row_count vaut 0, on peut considérer qu'il y a 1 ligne (si parser l'a initialisé) */
+    int rows = temp_row_count;
+    if (rows <= 0) rows = 1;
+    int cols = temp_col_count;
+    if (cols <= 0) cols = current_row_size;
+    Matrix *mat = create_matrix(rows, cols);
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            mat->data[i * cols + j] = temp_matrix_data[i][j];
         }
     }
+    mat->name = NULL;
     return mat;
 }
 

@@ -66,14 +66,15 @@ extern int yydebug;
 typedef union YYSTYPE
 {
 /* Line 2058 of yacc.c  */
-#line 15 "parser.y"
+#line 18 "parser.y"
 
-    float fval;
-    char* sval;
+    float fval;/* Pour les nombres */
+    char* sval;/* Pour les identifiants */
+    Matrix* matrix;/* Pour les matrices */
 
 
 /* Line 2058 of yacc.c  */
-#line 77 "parser.tab.h"
+#line 78 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
