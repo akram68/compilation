@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "semantic.h"
 
 #define MAX_VARS 100
@@ -199,35 +200,120 @@ Matrix* matrix_transpose(Matrix *a) {
     return result;
 }
 
-/* fonctions utilitaires pour construction de matrice depuis le parser */
-void start_new_matrix() {
+Matrix* matrix_inverse(Matrix *a) {
+    if (!a) return NULL;
+
+    if (a->rows != a->cols) {
+        printf("Erreur: seules les matrices carrees peuvent etre inversees (%dx%d)\n",
+               a->rows, a->cols);
+        return NULL;
+    }
+
+    int n = a->rows;
+    Matrix *result = create_matrix(n, n);
+
+    float *augmented = (float*)malloc(n * 2 * n * sizeof(float));
+    if (!augmented) {
+        fprintf(stderr, "Erreur allocation pour inversion\n");
+        free_matrix(result);
+        return NULL;
+    }
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            augmented[i * 2 * n + j] = a->data[i * n + j];
+        }
+        for (int j = 0; j < n; j++) {
+            augmented[i * 2 * n + n + j] = (i == j) ? 1.0f : 0.0f;
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        int pivot_row = i;
+        float max_val = fabs(augmented[i * 2 * n + i]);
+        for (int k = i + 1; k < n; k++) {
+            float val = fabs(augmented[k * 2 * n + i]);
+            if (val > max_val) {
+                max_val = val;
+                pivot_row = k;
+            }
+        }
+
+        if (max_val < 1e-10) {
+            printf("Erreur: matrice singuliere, inversion impossible\n");
+            free(augmented);
+            free_matrix(result);
+            return NULL;
+        }
+
+        if (pivot_row != i) {
+            for (int j = 0; j < 2 * n; j++) {
+                float temp = augmented[i * 2 * n + j];
+                augmented[i * 2 * n + j] = augmented[pivot_row * 2 * n + j];
+                augmented[pivot_row * 2 * n + j] = temp;
+            }
+        }
+
+        float pivot = augmented[i * 2 * n + i];
+        for (int j = 0; j < 2 * n; j++) {
+            augmented[i * 2 * n + j] /= pivot;
+        }
+
+        for (int k = 0; k < n; k++) {
+            if (k != i) {
+                float factor = augmented[k * 2 * n + i];
+                for (int j = 0; j < 2 * n; j++) {
+                    augmented[k * 2 * n + j] -= factor * augmented[i * 2 * n + j];
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            result->data[i * n + j] = augmented[i * 2 * n + n + j];
+        }
+    }
+
+    free(augmented);
+    result->name = NULL;
+    return result;
+}
+
+void reset_matrix_builder() {
     temp_row_count = 0;
     temp_col_count = 0;
     current_row_size = 0;
+    for (int i = 0; i < MAX_MATRIX_ROWS; i++) {
+        for (int j = 0; j < MAX_MATRIX_COLS; j++) {
+            temp_matrix_data[i][j] = 0.0f;
+        }
+    }
+}
+
+void start_new_matrix() {
+    reset_matrix_builder();
 }
 
 void start_new_row() {
-    /* reset taille courante de la ligne */
     current_row_size = 0;
-    /* NB: le parser gère temp_row_count (il peut initialiser à 1 comme dans ton parser) */
 }
 
 void add_number_to_row(float num) {
     if (temp_row_count < MAX_MATRIX_ROWS && current_row_size < MAX_MATRIX_COLS) {
         temp_matrix_data[temp_row_count][current_row_size] = num;
         current_row_size++;
-        /* temp_col_count est géré par le parser ou after finalize */
     } else {
         printf("Erreur: depassement dimensions temporaires\n");
     }
 }
 
 Matrix* finalize_matrix() {
-    /* si temp_row_count vaut 0, on peut considérer qu'il y a 1 ligne (si parser l'a initialisé) */
     int rows = temp_row_count;
     if (rows <= 0) rows = 1;
     int cols = temp_col_count;
     if (cols <= 0) cols = current_row_size;
+
     Matrix *mat = create_matrix(rows, cols);
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {

@@ -15,7 +15,8 @@ extern YYSTYPE yylval; /* Variable globale pour communiquer avec Bison*/
 %%
 [ \t\r\n]+                ;             /* ignorer espaces et retours ligne */
 
-"print"                   { yylval.sval = strdup("print"); return PRINT; } /* Quand "print" est trouvé, stocke la chaîne et retourne le token PRINT */
+"print"                   { yylval.sval = strdup("print"); return PRINT; }
+"inv"                     { yylval.sval = strdup("inv"); return INV; }
 "["                       { return LBRACKET; }
 "]"                       { return RBRACKET; }
 ";"                       { return SEMICOLON; }

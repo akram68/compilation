@@ -26,11 +26,13 @@ Matrix* matrix_add(Matrix *a, Matrix *b);
 Matrix* matrix_subtract(Matrix *a, Matrix *b);
 Matrix* matrix_multiply(Matrix *a, Matrix *b);
 Matrix* matrix_transpose(Matrix *a);
+Matrix* matrix_inverse(Matrix *a);
 
 void start_new_matrix();
 void start_new_row();
 void add_number_to_row(float num);
 Matrix* finalize_matrix();
 int get_last_row_size();
+void reset_matrix_builder();
 
 #endif

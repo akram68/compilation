@@ -45,6 +45,13 @@ void generate_transpose(const char *dest, const char *src)
     fprintf(out, "TRANS %s %s\n", dest, src);
 }
 
+void generate_inverse(const char *dest, const char *src)
+{
+    if (!out)
+        return;
+    fprintf(out, "INV %s %s\n", dest, src);
+}
+
 void generate_print(const char *varname)
 {
     if (!out)
